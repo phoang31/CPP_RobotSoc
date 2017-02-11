@@ -90,10 +90,10 @@
 #define APPLICATION_NAME        "TCP Socket"
 #define APPLICATION_VERSION     "1.1.1"
 
-#define IP_ADDR             0xc0a80064 /* 192.168.0.100 */
+#define IP_ADDR             0xC0a80204 /* 192.168.2.4 */
 #define PORT_NUM            5001
-#define BUF_SIZE            36
-#define TCP_PACKET_COUNT    1000
+#define BUF_SIZE            6
+#define TCP_PACKET_COUNT    4
 
 //FOR PWM
 #define DBG_PRINT               Report
@@ -1026,7 +1026,7 @@ int BsdTcpClient(unsigned short usPort)
     int             iStatus;
     long            lLoopCount = 0;
 
-    char 			mymessage[BUF_SIZE] = {"Hello SoccerBot\nHappy ThanksGiving!\t"};
+    char 			mymessage[BUF_SIZE] = {"Hello"};
     // filling the buffer
     for (iCounter=0 ; iCounter<BUF_SIZE ; iCounter++)
     {
@@ -1121,6 +1121,7 @@ int BsdTcpServer(unsigned short usPort)
     long            lLoopCount = 0;
     long            lNonBlocking = 1;
     int             iTestBufLen;
+    int 			iLoopCnt; //PWM
 
     // filling the buffer
     for (iCounter=0 ; iCounter<BUF_SIZE ; iCounter++)
@@ -1195,16 +1196,32 @@ int BsdTcpServer(unsigned short usPort)
     // waits for 1000 packets from the connected TCP client
     while (lLoopCount < g_ulPacketCount)
     {
+    	Report("%u packets\n\r",g_ulPacketCount);
         iStatus = sl_Recv(iNewSockID, receiveBuf, iTestBufLen, 0);
+        Report("Status = %d\n\r", iStatus);
         if( iStatus <= 0 )
         {
           // error
+          Report("Status <= 0: %d\n\r", iStatus);
           sl_Close(iNewSockID);
           sl_Close(iSockID);
           ASSERT_ON_ERROR(RECV_ERROR);
         }
+        UART_PRINT(receiveBuf);
+        Report("PWM RUNNING");
+        for(iLoopCnt = 0; iLoopCnt < 255; iLoopCnt ++)
+            	{
+                    UpdateDutyCycle(TIMERA2_BASE, TIMER_B, iLoopCnt);
+                	MAP_GPIOPinWrite(GPIOA0_BASE,GPIO_PIN_0,GPIO_PIN_0);
+                	MAP_GPIOPinWrite(GPIOA0_BASE,GPIO_PIN_5,GPIO_PIN_5);
+                	MAP_GPIOPinWrite(GPIOA0_BASE,GPIO_PIN_6,GPIO_PIN_6);
+                	MAP_GPIOPinWrite(GPIOA0_BASE,GPIO_PIN_3,GPIO_PIN_3);
+                    MAP_UtilsDelay(800000);
+
+            	}
 
         lLoopCount++;
+        Report("After ILoopCount++ = %u\n\r",  lLoopCount);
     }
 
     Report("Recieved %u packets successfully\n\r",g_ulPacketCount);
@@ -1318,6 +1335,7 @@ BoardInit(void)
 void main()
 {
     long lRetVal = -1;
+ //   int iLoopCnt;						//for pwm
 
     //
     // Board Initialization
@@ -1333,7 +1351,7 @@ void main()
     // Configure the pinmux settings for the peripherals exercised
     //
     PinMuxConfig();
-
+    SetupTimerPWMMode();
     //
     // Configuring UART
     //

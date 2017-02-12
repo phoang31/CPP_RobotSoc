@@ -91,7 +91,7 @@
 #define APPLICATION_VERSION     "1.1.1"
 
 #define IP_ADDR             0xC0a80204 /* 192.168.2.4 */
-#define PORT_NUM            5001
+#define PORT_NUM            5002
 #define BUF_SIZE            6
 #define TCP_PACKET_COUNT    4
 
@@ -1113,6 +1113,7 @@ int BsdTcpServer(unsigned short usPort)
 {
     SlSockAddrIn_t  sAddr;
     SlSockAddrIn_t  sLocalAddr;
+    char			condition;      //for while
     int             iCounter;
     int             iAddrSize;
     int             iSockID;
@@ -1122,12 +1123,13 @@ int BsdTcpServer(unsigned short usPort)
     long            lNonBlocking = 1;
     int             iTestBufLen;
     int 			iLoopCnt; //PWM
-
+    int 			getout = 0;   //keep the connection alive
     // filling the buffer
     for (iCounter=0 ; iCounter<BUF_SIZE ; iCounter++)
     {
         receiveBuf[iCounter] = (char)(iCounter % 10);
     }
+
 
     iTestBufLen  = BUF_SIZE;
 
@@ -1192,7 +1194,10 @@ int BsdTcpServer(unsigned short usPort)
             ASSERT_ON_ERROR(ACCEPT_ERROR);
         }
     }
+//Keep the connection ALIVE
 
+    while(!getout)
+{
     // waits for 1000 packets from the connected TCP client
     while (lLoopCount < g_ulPacketCount)
     {
@@ -1208,8 +1213,8 @@ int BsdTcpServer(unsigned short usPort)
           ASSERT_ON_ERROR(RECV_ERROR);
         }
         UART_PRINT(receiveBuf);
-        Report("PWM RUNNING");
-        for(iLoopCnt = 0; iLoopCnt < 255; iLoopCnt ++)
+        Report("\nPWM RUNNING\n\r");
+        for(iLoopCnt = 0; iLoopCnt < 10; iLoopCnt ++)
             	{
                     UpdateDutyCycle(TIMERA2_BASE, TIMER_B, iLoopCnt);
                 	MAP_GPIOPinWrite(GPIOA0_BASE,GPIO_PIN_0,GPIO_PIN_0);
@@ -1221,11 +1226,17 @@ int BsdTcpServer(unsigned short usPort)
             	}
 
         lLoopCount++;
+        condition = receiveBuf[0];
         Report("After ILoopCount++ = %u\n\r",  lLoopCount);
     }
-
+    lLoopCount = 0;
     Report("Recieved %u packets successfully\n\r",g_ulPacketCount);
-    
+//to break out the while loop
+    if(condition ==  'D' )
+    	getout = 1;
+
+    Report("getout = %d", getout);
+}
     // close the connected socket after receiving from connected TCP client
     iStatus = sl_Close(iNewSockID);    
     ASSERT_ON_ERROR(iStatus);
